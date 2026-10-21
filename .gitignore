@@ -1,0 +1,59 @@
+# Python and build output
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.spec
+
+# Runtime data and local exports
+WeChatLocalExporter/
+wxlocal-data/
+decrypted/
+exports/
+logs/
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.hex
+*.key
+
+# Editor settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Account picker runtime settings
+settings.json
+account_profiles.json
+
+# Local logs, profiles, exports and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+profile/
+webview/
+media/
+self-test.json
+frozen-export-test.json
+*.tmp
+
+# Local logs, profiles, exports and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+profile/
+webview/
+media/
+self-test.json
+frozen-export-test.json
+*.tmp

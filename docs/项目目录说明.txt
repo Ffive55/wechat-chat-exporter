@@ -1,0 +1,38 @@
+项目目录说明
+
+项目：微信聊天导出器
+版本：1.0.2
+整理日期：2026-10-21
+
+直接运行
+双击 dist\微信聊天导出器.exe。
+使用步骤和功能范围见 README.txt 或 dist\使用说明.txt。
+
+源码结构
+main.py             EXE入口、窗口和单实例控制
+api.py              界面调用与后台任务
+storage.py          微信数据读取、解密、索引和时间筛选
+media.py            图片、表情与头像匹配及加载
+media_crypto.py     图片缓存解密和原始数据保留
+codec_worker.py     隔离运行微信原生图片解码器
+rendering.py        单文件HTML生成、内置表情及头像处理
+assets\             界面HTML、图标、109种内置表情资源
+vendor\             复用的wxlocal数据库及消息解析代码
+dev_server.py       仅用于开发测试的本地界面适配器
+build.ps1           Windows EXE构建脚本
+requirements.txt    固定版本依赖
+LICENSE             AGPL-3.0许可证
+THIRD_PARTY.txt      第三方代码及资源说明
+
+构建
+需要64位Python 3.12和PowerShell 7。
+建议先创建虚拟环境，再使用虚拟环境中的Python构建：
+  python -m venv .venv
+  pwsh -File .\build.ps1 -Python .\.venv\Scripts\python.exe
+生成的EXE位于 dist\。
+
+数据位置
+本项目目录不包含聊天数据库、数据库密钥、个人聊天导出文件及测试缓存。
+程序默认运行数据位于 %LOCALAPPDATA%\WeChatLocalExporter；也可用 --data 参数指定。
+已添加 .gitignore，排除构建产物、虚拟环境及常见运行数据。
+项目仓库：https://github.com/Ffive55/wechat-chat-exporter

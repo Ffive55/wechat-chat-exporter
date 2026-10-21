@@ -1,0 +1,27 @@
+Third-party notices
+
+wxlocal (AGPL-3.0)
+Source adapted from wxlocal; see upstream project and LICENSE below.
+Upstream project: https://github.com/lmy27711/wxlocal
+Adapted files: vendor/keyfind.py, vendor/wxdecrypt.py, vendor/exporter.py, vendor/formatters.py, assets/app.ico.
+Changes include validated key candidate collection, contact-database verification, account-specific media derivation, snapshot handling, original-image preservation, filtering UI and standalone HTML export.
+The corresponding source for this application accompanies the executable. See LICENSE for AGPL-3.0.
+
+Wechat emoji images
+https://github.com/xxk8/wechat-emojis
+Image copyright belongs to Tencent. The resource repository permits personal learning and noncommercial use and requests permission for commercial uses. Images are bundled locally, not loaded from a CDN at viewing time.
+
+Image key derivation reference
+https://github.com/kyangc/wx-cli-again/tree/main/src/attachment/image_key
+
+Runtime components
+pywebview: BSD-3-Clause, https://github.com/r0x0r/pywebview
+Python: Python Software Foundation License, https://www.python.org
+pythonnet: MIT, https://github.com/pythonnet/pythonnet
+PyCryptodome: BSD / public-domain components, https://www.pycryptodome.org
+cryptography: Apache-2.0 or BSD-3-Clause, https://github.com/pyca/cryptography
+Pillow: HPND, https://python-pillow.org
+zstandard: BSD-3-Clause, https://github.com/indygreg/python-zstandard
+pefile: MIT, https://github.com/erocarrera/pefile
+PyInstaller bootloader: GPL-2.0-or-later with special exception, https://pyinstaller.org
+Microsoft Edge WebView2 and Weixin VoipEngine.dll are used from the user's existing installation, not redistributed here.
