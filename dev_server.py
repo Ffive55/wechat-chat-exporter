@@ -6,7 +6,7 @@ from api import Api
 def main():
     p=argparse.ArgumentParser();p.add_argument('--data',required=True);p.add_argument('--exports',required=True);p.add_argument('--port',type=int,default=18771);a=p.parse_args()
     api=Api(a.data,pathlib.Path(__file__).parent/'assets',test_export=a.exports);token=secrets.token_urlsafe(24);prefix='/'+token
-    methods={'boot','state','sessions','messages','load_media','start_sync','choose_export','open_export','open_data_folder','avatars','account_list','set_account_root','select_account','choose_account'}
+    methods={'boot','state','sessions','messages','load_media','start_sync','choose_export','open_export','open_export_folder','open_data_folder','avatars','account_list','set_account_root','select_account','choose_account'}
     bridge="<script>window.__TEST_BRIDGE__=true;window.pywebview={api:new Proxy({}, {get:(_,name)=>(...args)=>fetch('"+prefix+"/rpc/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(args)}).then(r=>r.json())})};</script>"
     page=(pathlib.Path(__file__).parent/'assets/ui.html').read_text(encoding='utf-8').replace('<script>',bridge+'<script>',1).encode()
     class Handler(BaseHTTPRequestHandler):

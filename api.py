@@ -5,6 +5,8 @@ from media import Media
 from rendering import Renderer,uri
 from media import image_info
 
+EXPORT_FORMATS = {'html': ('HTML (*.html)', '.html'), 'pdf': ('PDF (*.pdf)', '.pdf'), 'md': ('Markdown (*.md)', '.md')}
+
 class Api:
     def __init__(self,data,assets,test_export=None):
         self._data=pathlib.Path(data);self._store=Store(data);self._media=Media(self._store,data);self._renderer=Renderer(assets,self._media);self._window=None;self._lock=threading.Lock();self._job={'running':False,'kind':'','message':'请选择账号并读取记录','progress':0,'result':None,'error':'','revision':0};self._test_export=test_export;self._settings_file=self._data/'settings.json';self._profiles_file=self._data/'account_profiles.json'
@@ -83,7 +85,8 @@ class Api:
             return {'ok':True,'selected':path,'current':self._store.current()}
     def boot(self):
         state=self.account_list()
-        return {**state,'has_data':bool(state['current']),'emoji_css':self._renderer.emoji_css(),'data_directory':str(self._data),'version':'1.0.2'}
+        saved=self._settings.get('export_format','html')
+        return {**state,'has_data':bool(state['current']),'emoji_css':self._renderer.emoji_css(),'data_directory':str(self._data),'version':'1.1.2','export_format':saved if isinstance(saved,str) and saved in EXPORT_FORMATS else 'html'}
     def state(self):
         with self._lock:return dict(self._job)
     def sessions(self,query=''):
@@ -116,25 +119,53 @@ class Api:
         paths=self._window.create_file_dialog(webview.FileDialog.FOLDER,directory=self._root())
         if not paths:return None
         return self.set_account_root(paths[0])
-    def choose_export(self,user,start='',end='',online=True):
+    def _export_path(self,path,format):
+        if format not in EXPORT_FORMATS:raise ValueError('不支持的导出格式')
+        resolved=pathlib.Path(path).with_suffix(EXPORT_FORMATS[format][1]).resolve()
+        roots=[self._store.current(),self._root()]
+        for root in roots:
+            if root and resolved.is_relative_to(pathlib.Path(root).resolve()):raise ValueError('请把导出文件保存到微信数据目录以外')
+        return resolved
+    def export_to(self,rows,title,path,start='',end='',online=True,format='html',include_media=False):
+        resolved=self._export_path(path,format)
+        if format=='html':
+            result=self._renderer.export(rows,title,resolved,start,end,online,self._notify)
+        elif format=='md':
+            from markdown_export import export_markdown
+            result=export_markdown(rows,title,resolved,start,end,online,include_media,self._media,self._notify,emoji=self._renderer.emoji)
+        else:
+            from pdf_export import export_pdf
+            result=export_pdf(self._renderer,rows,title,resolved,start,end,online,self._notify)
+        result['format']=format
+        with self._lock:
+            self._settings['export_format']=format
+            self._save_json(self._settings_file,self._settings)
+        return result
+    def choose_export(self,user,start='',end='',online=True,format='html',include_media=False):
         try:
+            if format not in EXPORT_FORMATS:return {'ok':False,'error':'不支持的导出格式'}
+            if self.state()['running']:return {'ok':False,'error':'已有任务正在运行，请等待完成'}
             rows,total=self._store.rows(user,start,end,limit=None)
             if not rows:return {'ok':False,'error':'所选时间段没有消息'}
             session=next((s for s in self._store.sessions() if s['username']==user),None)
             if not session:return {'ok':False,'error':'会话不存在'}
-            name=re.sub(r'[\\/:*?"<>|]','_',session['display'])[:60]+'_聊天记录_'+datetime.datetime.now(TZ).strftime('%Y%m%d_%H%M%S')+'.html'
+            name=re.sub(r'[\\/:*?"<>|\x00-\x1f]','_',session['display']).strip(' .')[:60] or '会话'
+            name+='_聊天记录_'+datetime.datetime.now(TZ).strftime('%Y%m%d_%H%M%S')+EXPORT_FORMATS[format][1]
             if self._test_export:path=str(pathlib.Path(self._test_export)/name)
             else:
                 import webview
-                selected=self._window.create_file_dialog(webview.FileDialog.SAVE,save_filename=name,file_types=('HTML (*.html)',))
+                selected=self._window.create_file_dialog(webview.FileDialog.SAVE,save_filename=name,file_types=(EXPORT_FORMATS[format][0],))
                 if not selected:return {'ok':True,'cancelled':True}
                 path=selected if isinstance(selected,str) else selected[0]
-            resolved=pathlib.Path(path).resolve();account=pathlib.Path(self._store.current()).resolve()
-            if resolved.is_relative_to(account):return {'ok':False,'error':'请把导出文件保存到微信数据目录以外'}
-            return self._run('export',lambda:self._renderer.export(rows,session['display'],resolved,start,end,bool(online),self._notify))
+            resolved=self._export_path(path,format)
+            return self._run('export',lambda:self.export_to(rows,session['display'],resolved,start,end,bool(online),format,bool(include_media)))
         except Exception as e:return {'ok':False,'error':str(e)}
     def open_export(self):
         result=self.state().get('result') or {};path=result.get('path')
         if path and pathlib.Path(path).is_file():os.startfile(path);return {'ok':True}
         return {'ok':False,'error':'尚无可打开的导出文件'}
     def open_data_folder(self):os.startfile(str(self._data));return {'ok':True}
+    def open_export_folder(self):
+        result=self.state().get('result') or {};path=result.get('path')
+        if path and pathlib.Path(path).is_file():os.startfile(str(pathlib.Path(path).parent));return {'ok':True}
+        return {'ok':False,'error':'尚无可打开的导出目录'}

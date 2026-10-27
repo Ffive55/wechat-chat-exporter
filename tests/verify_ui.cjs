@@ -1,0 +1,87 @@
+// Run against dev_server.py with synthetic data. Requires Playwright in NODE_PATH.
+const {chromium} = require('playwright');
+const fs = require('fs');
+const path = require('path');
+const assert = require('node:assert/strict');
+
+(async () => {
+  const [urlFile, output] = process.argv.slice(2);
+  fs.mkdirSync(output, {recursive: true});
+  const browser = await chromium.launch({channel: 'msedge', headless: true});
+  const page = await browser.newPage({viewport: {width: 1320, height: 880}});
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto(fs.readFileSync(urlFile, 'utf8'));
+    await page.locator('.session').first().waitFor();
+    await page.locator('#export-format').selectOption('html');
+    await page.locator('.session').first().click();
+    await page.waitForFunction(() => document.querySelector('#message-count').textContent.includes('当前显示'));
+    const value = id => page.locator('#' + id).inputValue();
+    const equal = async (id, expected) => assert.equal(await value(id), expected, id);
+    await equal('start-time', '00:00:00');await equal('end-time', '23:59:59');
+    const openNativePicker = async id => {
+      const input = page.locator('#' + id), bounds = await input.boundingBox();
+      assert.equal(await input.evaluate(el => getComputedStyle(el, '::-webkit-calendar-picker-indicator').display !== 'none'), true);
+      await input.click({position: {x: bounds.width - 16, y: bounds.height / 2}});
+    };
+    await page.locator('#start-date').fill('2026-10-26');
+    await page.locator('#end-date').fill('2026-10-26');
+    await equal('start', '2026-10-26T00:00:00');await equal('end', '2026-10-26T23:59:59');
+    await openNativePicker('start-date');
+    await page.screenshot({path: path.join(output, 'native-date-picker.png')});
+    await page.keyboard.press('Escape');
+    await openNativePicker('start-time');
+    await page.screenshot({path: path.join(output, 'native-start-time-picker.png')});
+    await page.keyboard.press('Escape');
+    await page.locator('#start-date').fill('2026-10-25');
+    await equal('start', '2026-10-25T00:00:00');
+    await page.locator('#start-time').fill('09:30:15');
+    await page.locator('#end-time').fill('18:20:45');
+    await page.locator('#start-date').fill('2026-10-24');
+    await page.locator('#end-date').fill('2026-10-27');
+    await equal('start', '2026-10-24T09:30:15');await equal('end', '2026-10-27T18:20:45');
+    await page.locator('#start-date').fill('');
+    await equal('start', '');await equal('start-time', '00:00:00');await equal('end-time', '18:20:45');
+    await page.locator('#start-date').fill('2026-10-26');
+    await equal('start', '2026-10-26T00:00:00');
+    await page.locator('#all').click();
+    await equal('start', '');await equal('end', '');await equal('end-time', '23:59:59');
+    await page.locator('#start-date').fill('2026-10-26');await page.locator('#end-date').fill('2026-10-26');
+    await page.locator('#filter').click();
+    await page.waitForFunction(() => document.querySelector('#message-count').textContent.includes('255 条'));
+    assert.equal(await page.locator('#md-media-option').isVisible(), false);
+    await page.locator('#export-format').selectOption('md');
+    assert.equal(await page.locator('#md-media-option').isVisible(), true);
+    await page.locator('#export').click();
+    await page.locator('#open-export').waitFor({state: 'visible'});
+    assert.match(await page.locator('#status-text').textContent(), /Markdown.*255 条消息.*文字占位/);
+    await page.reload();
+    await page.locator('.session').first().waitFor();
+    await equal('export-format', 'md');
+    await page.locator('.session').first().click();
+    await page.locator('#start-date').fill('2026-10-26');
+    await page.locator('#end-date').fill('2026-10-26');
+    await page.locator('#md-media').check();
+    await page.locator('#online').uncheck();
+    await page.locator('#export').click();
+    await page.waitForFunction(() => /Markdown.*保存 4/.test(document.querySelector('#status-text').textContent));
+    await page.screenshot({path: path.join(output, 'ui-1320.png')});
+    await page.setViewportSize({width: 980, height: 650});
+    await page.screenshot({path: path.join(output, 'ui-980.png')});
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await openNativePicker('end-time');
+    await page.screenshot({path: path.join(output, 'native-end-time-picker-980.png')});
+    await page.keyboard.press('Escape');
+    await page.locator('#start-time').fill('10:30:15');
+    await page.locator('.session').first().click();
+    await equal('start', '');await equal('start-time', '00:00:00');await equal('end-time', '23:59:59');
+    await page.locator('#start-date').fill('2026-10-28');await page.locator('#end-date').fill('2026-10-27');
+    await page.locator('#export').click();
+    assert.match(await page.locator('#toast').textContent(), /开始时间不能晚于结束时间/);
+    assert.deepEqual(errors, []);
+    console.log('PASS: native date/time pickers, date defaults and preservation, range, MD exports, saved format, 1320/980 layout, no JS errors');
+  } finally {
+    await browser.close();
+  }
+})().catch(error => {console.error(error);process.exitCode = 1});

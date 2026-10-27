@@ -1,5 +1,5 @@
 from __future__ import annotations
-import pathlib,os,hashlib,json,struct,datetime,xml.etree.ElementTree as ET,urllib.request,urllib.parse,io,threading
+import pathlib,os,hashlib,json,struct,datetime,xml.etree.ElementTree as ET,urllib.request,urllib.parse,io,threading,re
 from PIL import Image
 import media_crypto as crypto
 from codec_worker import IsolatedCodec
@@ -11,7 +11,21 @@ class Redirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req,fp,code,msg,headers,newurl)
 
 def allowed(url):
-    p=urllib.parse.urlparse(url);return p.scheme in ('http','https') and bool(p.hostname) and (p.hostname.endswith('.qq.com') or p.hostname=='qq.com') and not p.username and not p.password
+    try:
+        p=urllib.parse.urlparse(url);host=p.hostname or ''
+        return p.scheme in ('http','https') and any(host==domain or host.endswith('.'+domain) for domain in ('qq.com','qpic.cn')) and not p.username and not p.password
+    except ValueError:return False
+
+
+def emoji_node(content):
+    # Group messages can prefix the XML with a sender and a real or literal newline.
+    content=re.sub(r'^\s*[^\s<>:]+:(?:\r?\n|(?:\\r)?\\n)', '',content,count=1)
+    try:
+        root=ET.fromstring(content)
+    except ET.ParseError as e:raise ValueError('表情消息资源信息格式不正确') from e
+    node=root if root.tag=='emoji' else root.find('emoji')
+    if node is None:raise ValueError('表情消息缺少资源信息')
+    return node
 
 def image_info(data):
     with Image.open(io.BytesIO(data)) as im:
@@ -83,10 +97,9 @@ class Media:
                 p,thumbnail=self._image_path(row,root);data,original=self._decode(p,root)
                 result={'data':data,'original':original,'thumbnail':thumbnail,'source':'本机图片缓存自动解密','name':f"图片_{row['ts']}"}
             elif row['type']==47:
-                node=ET.fromstring(row['content']).find('emoji')
-                if node is None:raise ValueError('表情消息缺少资源信息')
-                digest=node.get('md5') or ''
-                if len(digest)!=32:raise ValueError('表情资源标识不合法')
+                node=emoji_node(row['content'])
+                digest=(node.get('md5') or '').lower()
+                if not re.fullmatch(r'[0-9a-f]{32}',digest):raise ValueError('表情资源标识不合法')
                 saved=self.cache/(digest+'.image');data=saved.read_bytes() if saved.exists() else None
                 if data and hashlib.md5(data).hexdigest()!=digest:data=None
                 if not data:
@@ -96,7 +109,7 @@ class Media:
                         if hashlib.md5(raw).hexdigest()==digest:data=raw
                 if not data:
                     if not online:raise FileNotFoundError('本地无可用表情缓存；可启用联网补全表情')
-                    url=node.get('cdnurl') or ''
+                    url=(node.get('cdnurl') or '').strip()
                     if not allowed(url):raise ValueError('没有可用的微信表情资源地址')
                     opener=urllib.request.build_opener(Redirect())
                     with opener.open(urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'}),timeout=15) as response:data=response.read((32<<20)+1)

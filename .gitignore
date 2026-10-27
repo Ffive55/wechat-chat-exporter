@@ -57,3 +57,6 @@ media/
 self-test.json
 frozen-export-test.json
 *.tmp
+
+# Synthetic export QA artifacts
+tmp/

@@ -1,8 +1,8 @@
 项目目录说明
 
 项目：微信聊天导出器
-版本：1.0.2
-整理日期：2026-10-21
+版本：1.1.2
+整理日期：2026-10-27
 
 直接运行
 双击 dist\微信聊天导出器.exe。
@@ -16,6 +16,8 @@ media.py            图片、表情与头像匹配及加载
 media_crypto.py     图片缓存解密和原始数据保留
 codec_worker.py     隔离运行微信原生图片解码器
 rendering.py        单文件HTML生成、内置表情及头像处理
+pdf_export.py       WebView2 PDF排版与导出
+markdown_export.py  Markdown与媒体资源导出
 assets\             界面HTML、图标、109种内置表情资源
 vendor\             复用的wxlocal数据库及消息解析代码
 dev_server.py       仅用于开发测试的本地界面适配器
