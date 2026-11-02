@@ -44,19 +44,5 @@ self-test.json
 frozen-export-test.json
 *.tmp
 
-# Local logs, profiles, exports and credentials
-.env
-.env.*
-!.env.example
-*.pem
-*.pfx
-*.p12
-profile/
-webview/
-media/
-self-test.json
-frozen-export-test.json
-*.tmp
-
-# Synthetic export QA artifacts
+# Local export QA artifacts
 tmp/

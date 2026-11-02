@@ -43,7 +43,7 @@ def verify(exe, root):
                 assert 'alt="' + label + '"' in text
         run('--self-test')
         state = json.loads((data / 'self-test.json').read_text(encoding='utf-8'))
-        assert state['version'] == '1.1.2' and state['export_format'] == format, state
+        assert state['version'] == '1.1.3' and state['export_format'] == format, state
         reports.append(report)
         print(f'PASS: frozen {format} include_media={include}, {report["messages"]} messages, {report["bytes"]} bytes, remembered after new process')
     (output.parent / 'verification.json').write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding='utf-8')

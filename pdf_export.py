@@ -14,6 +14,7 @@ import time
 from PIL import Image
 from storage import TZ
 from vendor import exporter
+from vendor.formatters import is_image_media
 
 
 PRINT_CSS = '''
@@ -49,7 +50,7 @@ def build_print_page(renderer, rows, title, target, start, end, online, notify):
             last = day
         used.update(n for n in re.findall(r'\[([^\[\]\r\n]{1,20})\]', row['content']) if n in renderer.emoji)
         result, error = None, ''
-        if row['type'] in (3, 47):
+        if is_image_media(row):
             try:
                 result = renderer.media.resolve(row, online)
                 if result.get('frames', 1) > 1:

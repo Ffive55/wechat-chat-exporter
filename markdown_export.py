@@ -12,7 +12,7 @@ import tempfile
 from urllib.parse import quote
 
 from storage import TZ
-from vendor.formatters import KIND_ZH, row_to_msg, unxml
+from vendor.formatters import KIND_ZH, row_to_msg, unxml, is_image_media
 
 
 def escape(text):
@@ -30,7 +30,7 @@ def message_text(row, render_text=escape):
     kind = m['kind']
     if kind == 'text':
         return render_text(row['content'])
-    if kind in ('image', 'sticker'):
+    if kind in ('image', 'sticker', 'sticker_gif'):
         return '[' + KIND_ZH[kind] + ']'
     if kind == 'unknown' or (kind == 'app' and not m.get('title')):
         return '[未解析消息：类型 ' + str(row['type']) + ']\n\n' + raw_block(row['content'])
@@ -133,7 +133,7 @@ def export_markdown(rows, title, path, start, end, online, include_media, media,
             sender = row['sender_display'] or ('我' if row['is_self'] else row['sender']) or '系统'
             parts.append('### ' + stamp.strftime('%H:%M:%S') + ' ' + escape(sender))
             text = message_text(row, inline)
-            if include_media and row['type'] in (3, 47):
+            if include_media and is_image_media(row):
                 label = '图片' if row['type'] == 3 else '表情'
                 try:
                     result = media.resolve(row, online)

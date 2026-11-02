@@ -4,7 +4,9 @@ Windows 本地微信聊天记录预览工具，支持 HTML、PDF 和 Markdown �
 
 **下载程序：[Releases](https://github.com/Ffive55/wechat-chat-exporter/releases/latest)**
 
-当前版本：**1.1.2**。
+当前版本：**1.1.3**。
+
+本版修复 GIF 表情显示与 HTML 导出，详细变更见 [更新日志](CHANGELOG.md)。
 
 ## 功能
 
@@ -20,6 +22,7 @@ Windows 本地微信聊天记录预览工具，支持 HTML、PDF 和 Markdown �
 - 照片缓存自动解密；HTML 与带图 Markdown 中的 JPEG、PNG、GIF 保留原字节。HTML 同时保留原始 WXGF 数据和显示用 JPEG。
 - 内置 109 种微信表情资源；已知标签显示为小图，文字标签仍可搜索。
 - 自定义表情支持微信 `qq.com`、`qpic.cn` 资源地址和群聊消息格式，保留 GIF 动画；下载后可从本地缓存离线导出。
+- 支持普通表情消息及 `49 / 8` 格式的 GIF 表情，预览和 HTML 导出均保留原始动画，不再显示 `sticker_gif` 占位文字。
 - “跳到最近”定位到当前筛选范围的最后一条消息，并在媒体延迟加载时保持底部。
 
 ## 使用
@@ -75,7 +78,7 @@ pwsh -File .\build.ps1 -Python .\.venv\Scripts\python.exe
 
 产物位于 `dist\微信聊天导出器.exe`。EXE 和其他构建产物通过 Releases 分发，不提交到源码分支。
 
-需要保留正在运行的旧版时，可用 `-DistPath .\dist\1.1.2` 指定输出目录。构建脚本会一并收集当前 Python SSL 初始化需要的证书策略文件，避免打包后首次下载表情时报“文件不存在”。
+需要保留正在运行的旧版时，可用 `-DistPath .\dist\1.1.3` 指定输出目录。构建脚本会一并收集当前 Python SSL 初始化需要的证书策略文件，避免打包后首次下载表情时报“文件不存在”。
 
 运行测试：
 
@@ -90,6 +93,8 @@ pwsh -File .\build.ps1 -Python .\.venv\Scripts\python.exe
 ```
 
 可重复传入 `--message-id`，选择不同 MD5、不同资源域名的表情进行验证。
+
+该验证同时支持普通表情消息和 `49 / 8` 格式的 GIF 表情。浏览器界面验证脚本位于 `tests/verify_sticker_ui.cjs`，可配合 `dev_server.py` 和本地测试数据，检查预览加载、HTML 内嵌字节、动画播放及离线打开时的网络请求。
 
 ## 项目结构
 

@@ -86,7 +86,7 @@ class Api:
     def boot(self):
         state=self.account_list()
         saved=self._settings.get('export_format','html')
-        return {**state,'has_data':bool(state['current']),'emoji_css':self._renderer.emoji_css(),'data_directory':str(self._data),'version':'1.1.2','export_format':saved if isinstance(saved,str) and saved in EXPORT_FORMATS else 'html'}
+        return {**state,'has_data':bool(state['current']),'emoji_css':self._renderer.emoji_css(),'data_directory':str(self._data),'version':'1.1.3','export_format':saved if isinstance(saved,str) and saved in EXPORT_FORMATS else 'html'}
     def state(self):
         with self._lock:return dict(self._job)
     def sessions(self,query=''):

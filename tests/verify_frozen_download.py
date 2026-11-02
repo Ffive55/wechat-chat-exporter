@@ -19,6 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from media import emoji_node
 from storage import SCHEMA, Store
+from vendor.formatters import is_sticker
 
 
 def verify(exe, source, message_ids):
@@ -26,12 +27,12 @@ def verify(exe, source, message_ids):
         raise ValueError('找不到源消息索引')
     store = Store(source)
     rows = [store.row(mid) for mid in message_ids]
-    if any(not row or row['type'] != 47 for row in rows):
+    if any(not row or not is_sticker(row) for row in rows):
         raise ValueError('请选择有效的自定义表情消息')
     with tempfile.TemporaryDirectory(prefix='wxexport_frozen_download_') as folder:
         fixture = pathlib.Path(folder)
-        account = fixture / 'empty_account'
-        account.mkdir()
+        account = fixture / 'xwechat_files' / 'empty_account'
+        account.mkdir(parents=True)
         with closing(sqlite3.connect(fixture / 'messages.db')) as c, c:
             c.executescript(SCHEMA)
             columns = list(rows[0])
@@ -66,11 +67,21 @@ def verify(exe, source, message_ids):
         with closing(sqlite3.connect(fixture / 'messages.db')) as c, c:
             for row in rows:
                 node = emoji_node(row['content'])
-                for key in list(node.attrib):
-                    if key.endswith('url'):
-                        node.set(key, 'https://example.invalid/unavailable')
+                if row['type'] == 49:
+                    # Keep the appmsg format, with only its original MD5 left.
+                    root = ET.Element('msg')
+                    app = ET.SubElement(root, 'appmsg')
+                    ET.SubElement(app, 'type').text = '8'
+                    attach = ET.SubElement(app, 'appattach')
+                    ET.SubElement(attach, 'emoticonmd5').text = node.get('md5')
+                    content = ET.tostring(root, encoding='unicode')
+                else:
+                    for key in list(node.attrib):
+                        if key.endswith('url'):
+                            node.set(key, 'https://example.invalid/unavailable')
+                    content = '<msg>' + ET.tostring(node, encoding='unicode') + '</msg>'
                 c.execute('update message set content=? where id=?',
-                          ('<msg>' + ET.tostring(node, encoding='unicode') + '</msg>', row['id']))
+                          (content, row['id']))
         for row in rows:
             process = run('--verify-media', str(row['id']))
             report = json.loads((fixture / 'media-test.json').read_text(encoding='utf-8'))

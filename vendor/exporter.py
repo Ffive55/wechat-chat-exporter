@@ -153,7 +153,7 @@ def _msg_html(m: dict, srcs: dict[int, str], thumbs: dict[int, str]) -> str:
                 f'<img class="pic" src="{_esc(src)}" alt="" loading="lazy"></a>'
                 if src else '<div class="bub"><span class="tag">[图片未缓存]</span></div>')
 
-    elif k == "sticker":
+    elif k in ("sticker", "sticker_gif"):
         src = m.get("sticker_src")
         if src:
             body = (f'<a href="{_esc(src)}" target="_blank">'

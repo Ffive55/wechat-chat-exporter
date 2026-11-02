@@ -1,9 +1,10 @@
 from __future__ import annotations
-import pathlib,os,hashlib,json,struct,datetime,xml.etree.ElementTree as ET,urllib.request,urllib.parse,io,threading,re
+import pathlib,os,hashlib,json,struct,datetime,xml.etree.ElementTree as ET,urllib.request,urllib.parse,io,threading,re,base64
 from PIL import Image
 import media_crypto as crypto
 from codec_worker import IsolatedCodec
 from storage import TZ
+from vendor.formatters import is_sticker
 
 class Redirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,req,fp,code,msg,headers,newurl):
@@ -17,15 +18,53 @@ def allowed(url):
     except ValueError:return False
 
 
+def _emoji_info(encoded):
+    # appmsg/type=8 stores the original MD5 and URL in protobuf fields 1 and 2.
+    # Other fields may describe encrypted or resized variants; do not use them
+    # in place of the original GIF whose bytes must match the message MD5.
+    try:
+        data=base64.b64decode(re.sub(r'\s+', '',encoded),validate=True)
+        def varint(pos):
+            value=0
+            for shift in range(0,70,7):
+                if pos>=len(data):raise ValueError()
+                byte=data[pos];pos+=1;value|=(byte&127)<<shift
+                if not byte&128:return value,pos
+            raise ValueError()
+        pos=0;fields={}
+        while pos<len(data):
+            tag,pos=varint(pos);field,wire=tag>>3,tag&7
+            if not field:raise ValueError()
+            if wire==0:
+                _,pos=varint(pos)
+                continue
+            if wire==2:
+                size,pos=varint(pos);end=pos+size
+                if end>len(data):raise ValueError()
+                if field in (1,2):fields[field]=data[pos:end].decode('utf-8').strip()
+            elif wire in (1,5):end=pos+(8 if wire==1 else 4)
+            else:raise ValueError()
+            if end>len(data):raise ValueError()
+            pos=end
+        return fields.get(1,''),fields.get(2,'')
+    except ValueError as e:raise ValueError('GIF 表情资源信息格式不正确') from e
+
+
 def emoji_node(content):
     # Group messages can prefix the XML with a sender and a real or literal newline.
     content=re.sub(r'^\s*[^\s<>:]+:(?:\r?\n|(?:\\r)?\\n)', '',content,count=1)
     try:
-        root=ET.fromstring(content)
+        root=ET.fromstring(content.rstrip('\x00 \t\r\n'))
     except ET.ParseError as e:raise ValueError('表情消息资源信息格式不正确') from e
     node=root if root.tag=='emoji' else root.find('emoji')
-    if node is None:raise ValueError('表情消息缺少资源信息')
-    return node
+    if node is not None:return node
+    app=root if root.tag=='appmsg' else root.find('appmsg')
+    if app is None or (app.findtext('type') or '').strip()!='8':raise ValueError('表情消息缺少资源信息')
+    digest=(app.findtext('appattach/emoticonmd5') or '').strip()
+    encoded=app.findtext('appattach/emojiinfo') or ''
+    info_digest,url=_emoji_info(encoded)
+    if digest and info_digest and digest.lower()!=info_digest.lower():raise ValueError('GIF 表情资源标识不一致')
+    return ET.Element('emoji',md5=digest or info_digest,cdnurl=url)
 
 def image_info(data):
     with Image.open(io.BytesIO(data)) as im:
@@ -96,7 +135,7 @@ class Media:
             if row['type']==3:
                 p,thumbnail=self._image_path(row,root);data,original=self._decode(p,root)
                 result={'data':data,'original':original,'thumbnail':thumbnail,'source':'本机图片缓存自动解密','name':f"图片_{row['ts']}"}
-            elif row['type']==47:
+            elif is_sticker(row):
                 node=emoji_node(row['content'])
                 digest=(node.get('md5') or '').lower()
                 if not re.fullmatch(r'[0-9a-f]{32}',digest):raise ValueError('表情资源标识不合法')

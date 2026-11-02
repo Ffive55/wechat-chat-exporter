@@ -2,7 +2,7 @@ from __future__ import annotations
 import pathlib,json,base64,re,html,hashlib,datetime,os
 from html.parser import HTMLParser
 from vendor import exporter
-from vendor.formatters import row_to_msg
+from vendor.formatters import row_to_msg,is_sticker,is_image_media
 from storage import TZ
 exporter._fmt_ts=lambda ts:datetime.datetime.fromtimestamp(ts,TZ).strftime('%Y-%m-%d %H:%M:%S')
 exporter._now=lambda:datetime.datetime.now(TZ)
@@ -42,11 +42,11 @@ class Renderer:
         srcs={}
         if result:
             value=uri(result['data'],result['mime'])
-            if row['type']==47:m['sticker_src']=value
+            if is_sticker(row):m['sticker_src']=value
             else:srcs[row['id']]=value
         fragment=exporter._msg_html(m,srcs,{})
         if row.get('sender'):fragment=fragment.replace('<div class="av">','<div class="av '+self.avatar_class(row['sender'])+'" role="img" aria-label="'+html.escape(row['sender_display']+'的头像',quote=True)+'">',1)
-        if row['type'] in (3,47) and not result:
+        if is_image_media(row) and not result:
             label='图片' if row['type']==3 else '表情'
             placeholder='<div class="bub"><span class="tag">['+('图片未缓存' if row['type']==3 else '表情')+']</span></div>'
             if preview:
@@ -54,7 +54,7 @@ class Renderer:
                 new=f'<div class="media-wait" data-mid="{row["id"]}" data-key="{identity}">点击加载{label}</div>'
             else:new='<div class="bub"><span class="tag">['+label+'未嵌入：'+html.escape(error or '本机资源缺失')+']</span></div>'
             fragment=fragment.replace(placeholder,new)
-        if row['type'] not in (1,3,47):
+        if row['type']!=1 and not is_image_media(row):
             raw='<details class="original-msg"><summary>原始消息内容</summary><pre>'+html.escape(row['content'])+'</pre></details>'
             fragment=fragment.replace('</div></div>',raw+'</div></div>',1)
         fragment=fragment.replace('语音未落盘','语音附件未嵌入').replace('文件未缓存','文件附件未嵌入').replace('视频未缓存','视频附件未嵌入')
@@ -81,7 +81,7 @@ class Renderer:
             day=datetime.datetime.fromtimestamp(row['ts'],TZ).strftime('%Y-%m-%d')
             if day!=last:out.append('<div class="day"><span>'+day+'</span></div>');last=day
             result=None;error=''
-            if row['type'] in (3,47):
+            if is_image_media(row):
                 try:
                     result=self.media.resolve(row,online)
                     manifest.append({'message_id':row['id'],'mime':result['mime'],'bytes':len(result['data']),'width':result['width'],'height':result['height'],'frames':result['frames'],'sha256':result['sha256']})

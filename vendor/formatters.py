@@ -49,6 +49,14 @@ KIND_ZH = {
     "mail": "邮件",
 }
 
+def is_sticker(row) -> bool:
+    return row["type"] == 47 or (row["type"] == 49 and row["subtype"] == 8)
+
+
+def is_image_media(row) -> bool:
+    return row["type"] == 3 or is_sticker(row)
+
+
 def parse_app(content: str, subtype: int) -> dict:
     """把 appmsg XML 压成前端好用的字段。"""
     out: dict[str, Any] = {"kind": APP_KIND.get(subtype, "app")}
