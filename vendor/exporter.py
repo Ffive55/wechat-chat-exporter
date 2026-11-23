@@ -192,11 +192,13 @@ def _msg_html(m: dict, srcs: dict[int, str], thumbs: dict[int, str]) -> str:
                 else f'<div class="card">{inner[:-6]}'
                      f'<div class="de">文件未缓存</div></div></div>')
 
-    elif k in ("link", "music", "channel", "channel_live", "miniprogram"):
+    elif k in ("link", "music", "channel", "channel_live", "miniprogram", "app", "gift"):
+        label = {"link": "链接", "music": "音乐", "channel": "视频号",
+                 "channel_live": "直播", "miniprogram": "小程序", "app": "消息", "gift": "礼物"}[k]
         th = thumbs.get(mid) or m.get("thumb_src")
         thh = f'<img class="th" src="{_esc(th)}" alt="" loading="lazy">' if th else ""
-        inner = (f'<div class="ic">{_esc(k[:4].upper())}</div>'
-                 f'<div class="ct"><div class="ti">{_esc(m.get("title"))}</div>'
+        inner = (f'<div class="ic">{_esc(label)}</div>'
+                 f'<div class="ct"><div class="ti">{_esc(m.get("title") or label)}</div>'
                  f'<div class="de">{_esc(m.get("des"))}</div></div>{thh}')
         url = m.get("url")
         body = (f'<a class="card" href="{_esc(url)}" target="_blank" rel="noopener">'

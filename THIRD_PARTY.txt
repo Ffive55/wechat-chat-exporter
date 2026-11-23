@@ -3,6 +3,10 @@ Third-party notices
 wxlocal (AGPL-3.0)
 Source adapted from wxlocal; see upstream project and LICENSE below.
 Upstream project: https://github.com/lmy27711/wxlocal
+Backup upstream: https://github.com/KurauWoo/wxlocal_fork
+Verified backup commit: fecdc7e586cc3a5007e8470c6455c257fb0849e6 (2026-10-21; checked 2026-11-23).
+GitHub identifies the backup's parent/source as lmy27711/wxlocal. The original URL returned 404 when checked.
+The backup is a source/provenance reference, not an automatic update source. Compared with this commit, vendor/wxdecrypt.py is identical; vendor/keyfind.py uses pwsh instead of powershell; vendor/exporter.py includes our GIF handling and subsequent local changes.
 Adapted files: vendor/keyfind.py, vendor/wxdecrypt.py, vendor/exporter.py, vendor/formatters.py, assets/app.ico.
 Changes include validated key candidate collection, contact-database verification, account-specific media derivation, snapshot handling, original-image preservation, filtering UI and standalone HTML export.
 The corresponding source for this application accompanies the executable. See LICENSE for AGPL-3.0.
@@ -13,6 +17,17 @@ Image copyright belongs to Tencent. The resource repository permits personal lea
 
 Image key derivation reference
 https://github.com/kyangc/wx-cli-again/tree/main/src/attachment/image_key
+
+App-message parsing reference / adapted logic (Apache-2.0)
+https://github.com/dhammavipassi/wx-cli-again
+Source file: src/daemon/query.rs
+Pinned commits:
+- 9738ca79d65a7ea82d86bd54a13fa04957dbf35e (recover payload text/URLs behind upgrade placeholders)
+- 47e44e23bb9dffb8c7568ecae4b39d40e7515d12 (video-channel title fallback)
+- 158be49cd08c42073d7a35856e87906d9fab3aaa (filter the WeChat support/upgrade host)
+Ported to Python in vendor/formatters.py, with regression cases in tests/test_app_messages.py.
+Local changes: retain structured message fields, exclude quoted/merged messages from payload fallback, match the parsed URL hostname exactly, and share sanitized descriptions across preview and exports.
+The original Apache-2.0 license is included in licenses/Apache-2.0.txt. No upstream NOTICE file was present at the pinned commit. This application remains distributed under AGPL-3.0.
 
 Runtime components
 pywebview: BSD-3-Clause, https://github.com/r0x0r/pywebview

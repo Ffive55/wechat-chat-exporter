@@ -4,9 +4,9 @@ Windows 本地微信聊天记录预览工具，支持 HTML、PDF 和 Markdown �
 
 **下载程序：[Releases](https://github.com/Ffive55/wechat-chat-exporter/releases/latest)**
 
-当前版本：**1.1.3**。
+当前版本：**1.1.4**。
 
-本版修复 GIF 表情显示与 HTML 导出，详细变更见 [更新日志](CHANGELOG.md)。
+本版修复视频号及升级提示卡片的标题、分类与链接解析，并统一预览和导出结果，详细变更见 [更新日志](CHANGELOG.md)。
 
 ## 功能
 
@@ -78,13 +78,23 @@ pwsh -File .\build.ps1 -Python .\.venv\Scripts\python.exe
 
 产物位于 `dist\微信聊天导出器.exe`。EXE 和其他构建产物通过 Releases 分发，不提交到源码分支。
 
-需要保留正在运行的旧版时，可用 `-DistPath .\dist\1.1.3` 指定输出目录。构建脚本会一并收集当前 Python SSL 初始化需要的证书策略文件，避免打包后首次下载表情时报“文件不存在”。
+需要保留正在运行的旧版时，可用 `-DistPath .\dist\1.1.4` 指定输出目录。构建脚本会一并收集当前 Python SSL 初始化需要的证书策略文件，避免打包后首次下载表情时报“文件不存在”，并收集项目许可证、第三方声明及其附带许可证。
 
 运行测试：
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
+
+真实 WebView2 PDF 与打包产物验证（仅使用脚本生成的测试数据；`pypdf` 只用于验收，不是应用运行依赖）：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install pypdf
+.\.venv\Scripts\python.exe tests\verify_pdf_runtime.py --root tmp\verify-pdf
+.\.venv\Scripts\python.exe tests\verify_frozen_exports.py --exe dist\微信聊天导出器.exe --root tmp\verify-frozen
+```
+
+验证包括同一窗口连续两次 PDF 导出、A4 页面尺寸、105 行跨页文字完整性、视频号与直播卡片、实际链接及升级占位过滤；打包验证另覆盖 HTML、两种 Markdown 导出和重启后的格式记忆。
 
 打包后的联网验证使用独立空缓存，并临时禁用消息中的资源地址来验证缓存加载与导出；源数据库只读：
 
@@ -112,3 +122,5 @@ pwsh -File .\build.ps1 -Python .\.venv\Scripts\python.exe
 ## 许可与第三方资源
 
 本项目包含 wxlocal 的衍生代码，按 **AGPL-3.0** 提供源码，详见 [LICENSE](LICENSE)。第三方代码及资源说明见 [THIRD_PARTY.txt](THIRD_PARTY.txt)。微信表情图片版权归腾讯公司所有，资源仓库说明其用于个人学习和非商业用途；软件许可不代表获得这些图片的商业授权。
+
+wxlocal 原仓库暂不可访问时，可查阅备用上游 [KurauWoo/wxlocal_fork](https://github.com/KurauWoo/wxlocal_fork)，已核验源码基准为 `fecdc7e586cc3a5007e8470c6455c257fb0849e6`。该地址用于追溯和比较代码，本项目保留自己的修复，不自动覆盖更新。消息卡片解析还参考了 [dhammavipassi/wx-cli-again](https://github.com/dhammavipassi/wx-cli-again) 的修复，具体提交及许可见第三方说明。

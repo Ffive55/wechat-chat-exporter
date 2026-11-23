@@ -1,8 +1,8 @@
 项目目录说明
 
 项目：微信聊天导出器
-版本：1.1.3
-整理日期：2026-11-02
+版本：1.1.4
+整理日期：2026-11-23
 
 直接运行
 双击 dist\微信聊天导出器.exe。
@@ -25,6 +25,7 @@ build.ps1           Windows EXE构建脚本
 requirements.txt    固定版本依赖
 LICENSE             AGPL-3.0许可证
 THIRD_PARTY.txt      第三方代码及资源说明
+licenses\           第三方许可证（含消息解析移植的 Apache-2.0）
 CHANGELOG.md         版本更新日志
 
 构建

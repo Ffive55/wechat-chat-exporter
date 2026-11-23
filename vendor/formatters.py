@@ -1,6 +1,8 @@
 # Message formatters adapted from wxlocal (AGPL-3.0).
 from __future__ import annotations
 import re,sqlite3
+import xml.etree.ElementTree as ET
+from urllib.parse import urlsplit
 from typing import Any,Optional
 
 KIND_BY_TYPE = {
@@ -11,7 +13,7 @@ KIND_BY_TYPE = {
 
 APP_KIND = {
     3: "music", 4: "link", 5: "link", 6: "file", 8: "sticker_gif",
-    19: "chat_record", 33: "miniprogram", 36: "miniprogram", 51: "quote",
+    19: "chat_record", 33: "miniprogram", 36: "miniprogram", 44: "miniprogram", 51: "channel",
     57: "quote", 62: "channel", 63: "channel_live", 87: "channel",
     2000: "transfer", 2001: "redpacket", 124: "gift",
 }
@@ -57,26 +59,104 @@ def is_image_media(row) -> bool:
     return row["type"] == 3 or is_sticker(row)
 
 
+# Adapted from dhammavipassi/wx-cli-again's appmsg fixes (Apache-2.0).
+# See THIRD_PARTY.txt for pinned commits and licenses/Apache-2.0.txt.
+APP_PLACEHOLDER_MARKERS = (
+    "当前版本不支持展示该内容", "当前微信版本不支持展示该内容",
+    "暂不支持查看", "不支持查看该内容", "请升级至最新版本",
+    "does not support this content",
+)
+
+
+def _app_placeholder(text: str) -> bool:
+    return any(marker in text.lower() for marker in APP_PLACEHOLDER_MARKERS)
+
+
+def _app_url(value: str) -> str:
+    value = value.strip()
+    try:
+        parsed = urlsplit(value)
+        if (parsed.scheme.lower() in ("http", "https") and parsed.hostname
+                and parsed.hostname.lower().rstrip('.') != "support.weixin.qq.com"
+                and not parsed.username and not parsed.password):
+            return value
+    except ValueError:
+        pass
+    return ""
+
+
+def _app_payload(node):
+    """Walk this card's payload, never borrow content from a quoted/merged message."""
+    pending = list(reversed(node))
+    while pending:
+        child = pending.pop()
+        if child.tag in ("refermsg", "recorditem", "appmsg"):
+            continue
+        yield child
+        pending.extend(reversed(child))
+
+
+def _app_fields(content: str, subtype: int) -> dict:
+    xml = re.sub(r'^\s*[^\s<>:]+:(?:\r?\n|(?:\\r)?\\n)', '', content, count=1)
+    try:
+        root = ET.fromstring(xml.rstrip('\x00 \t\r\n'))
+        app = root if root.tag == 'appmsg' else root.find('appmsg')
+    except ET.ParseError:
+        app = None
+
+    def field(tag):
+        # A valid tree only uses direct children. Regex is a legacy fallback for
+        # damaged XML; it must still filter upgrade text and invalid URLs.
+        if app is not None:
+            return (app.findtext(tag) or '').strip()
+        return _tag(content, tag)
+
+    if not subtype:
+        try:
+            subtype = int(field('type'))
+        except ValueError:
+            pass
+    title, description = field('title'), field('des')
+    placeholder = _app_placeholder(title) or (not title and _app_placeholder(description))
+    nodes = list(_app_payload(app)) if app is not None else []
+    if placeholder:
+        candidates = [description, field('sourcename'), field('sourcedisplayname')]
+        candidates.extend((node.text or '').strip() for node in nodes
+                          if node.tag in ('title', 'desc') and node is not app.find('title'))
+        title = next((v for v in candidates if v and not _app_placeholder(v)), '')
+    if _app_placeholder(description):
+        description = ''
+    if subtype == 51 and app is not None:
+        feed = app.find('finderFeed')
+        if feed is not None:
+            title = next((v for tag in ('desc', 'name', 'nickname')
+                          if (v := (feed.findtext(tag) or '').strip())
+                          and not _app_placeholder(v)), title)
+
+    urls = []
+    if subtype != 57:
+        if subtype == 51 and app is not None:
+            feed = app.find('finderFeed')
+            if feed is not None:
+                urls.extend(node.text or '' for node in _app_payload(feed)
+                            if node.tag in ('url', 'videoUrl'))
+        urls.extend((field('url'), field('url1')))
+        urls.extend(node.text or '' for node in nodes if node.tag in ('url', 'videoUrl'))
+    return {
+        'kind': APP_KIND.get(subtype, 'app'), 'title': title,
+        'des': description[:400], 'description': description,
+        'url': next((url for value in urls if (url := _app_url(value))), ''),
+        'placeholder': placeholder,
+        'thumb': field('thumburl') or field('cover') or next(
+            ((node.text or '').strip() for node in nodes
+             if node.tag in ('thumburl', 'cover') and (node.text or '').strip()), ''),
+    }
+
+
 def parse_app(content: str, subtype: int) -> dict:
     """把 appmsg XML 压成前端好用的字段。"""
-    out: dict[str, Any] = {"kind": APP_KIND.get(subtype, "app")}
-    t = TITLE_RE.search(content)
-    if t:
-        out["title"] = unxml(t.group(1)).strip()
-    d = DES_RE.search(content)
-    if d:
-        out["des"] = unxml(d.group(1)).strip()[:400]
-    u = URL_RE.search(content)
-    if u:
-        out["url"] = unxml(u.group(1)).strip()
-    th = THUMB_RE.search(content)
-    if th:
-        out["thumb"] = unxml(th.group(1)).strip()
-    if not out.get("thumb"):
-        cv = re.search(r"<cover>(.*?)</cover>", content, re.S)
-        if cv:
-            out["thumb"] = unxml(cv.group(1)).strip()
-    if subtype == 57:
+    out: dict[str, Any] = _app_fields(content, subtype)
+    if out['kind'] == 'quote':
         m = re.search(r"<refermsg>(.*?)</refermsg>", content, re.S)
         if m:
             ref = m.group(1)
@@ -117,14 +197,14 @@ def parse_app(content: str, subtype: int) -> dict:
                                  "from": _f("displayname"), "text": text[:200]}
             if q["svrid"]:
                 out["quote"] = q
-    if subtype == 6:
+    if out['kind'] == 'file':
         m = re.search(r"<totallen>(.*?)</totallen>", content, re.S)
         if m and m.group(1).strip().isdigit():
             out["size"] = int(m.group(1).strip())
         m = re.search(r"<fileext>(.*?)</fileext>", content, re.S)
         if m:
             out["ext"] = m.group(1).strip()
-    if subtype == 19:
+    if out['kind'] == 'chat_record':
         m = re.search(r"<recorditem>(.*?)</recorditem>", content, re.S)
         if m:
             out["title"] = out.get("title") or "聊天记录"

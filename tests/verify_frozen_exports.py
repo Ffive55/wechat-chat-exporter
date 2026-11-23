@@ -5,6 +5,7 @@ import pathlib
 import subprocess
 
 from export_fixture import create_fixture
+from pdf_checks import verify_pdf_content
 
 
 def verify(exe, root):
@@ -28,9 +29,11 @@ def verify(exe, root):
         assert target.is_file() and target.stat().st_size == report['bytes'], report
         if format == 'pdf':
             assert target.read_bytes().startswith(b'%PDF-')
+            report['pdf_checks'] = verify_pdf_content(target)
         else:
             text = target.read_text(encoding='utf-8')
-            for token in ('开始边界', '结束边界', '长消息结束', '消息 0240'):
+            for token in ('开始边界', '结束边界', '长消息结束', '消息 0240',
+                          '视频号真实内容验证', '视频号回退标题验证', '直播真实内容验证', '小程序真实内容验证'):
                 assert token in text, token
             assert '下一天消息' not in text
         if include:
@@ -43,7 +46,7 @@ def verify(exe, root):
                 assert 'alt="' + label + '"' in text
         run('--self-test')
         state = json.loads((data / 'self-test.json').read_text(encoding='utf-8'))
-        assert state['version'] == '1.1.3' and state['export_format'] == format, state
+        assert state['version'] == '1.1.4' and state['export_format'] == format, state
         reports.append(report)
         print(f'PASS: frozen {format} include_media={include}, {report["messages"]} messages, {report["bytes"]} bytes, remembered after new process')
     (output.parent / 'verification.json').write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding='utf-8')

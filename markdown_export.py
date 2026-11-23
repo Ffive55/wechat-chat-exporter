@@ -32,7 +32,7 @@ def message_text(row, render_text=escape):
         return render_text(row['content'])
     if kind in ('image', 'sticker', 'sticker_gif'):
         return '[' + KIND_ZH[kind] + ']'
-    if kind == 'unknown' or (kind == 'app' and not m.get('title')):
+    if kind == 'unknown' or (kind == 'app' and not m.get('title') and not m.get('placeholder')):
         return '[未解析消息：类型 ' + str(row['type']) + ']\n\n' + raw_block(row['content'])
     if kind == 'system':
         return render_text(m.get('text'))
@@ -51,9 +51,12 @@ def message_text(row, render_text=escape):
         parts.append('[' + label + '] ' + render_text(m['title']))
     elif not reference:
         parts.append('[' + label + ']')
-    des = re.search(r'<des>(.*?)</des>', row['content'], re.S)
-    description = unxml(des.group(1)) if des else m.get('des', '')
-    if description:
+    if 'description' in m:
+        description = m['description']
+    else:
+        des = re.search(r'<des>(.*?)</des>', row['content'], re.S)
+        description = unxml(des.group(1)) if des else m.get('des', '')
+    if description and description != m.get('title'):
         parts.append(render_text(description))
     url = m.get('url', '')
     if re.match(r'^https?://', url, re.I):

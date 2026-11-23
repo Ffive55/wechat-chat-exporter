@@ -56,6 +56,19 @@ def create_fixture(root, count=240):
     append(49, '<msg><appmsg><title>测试文档.pdf</title><totallen>1024</totallen><fileext>pdf</fileext></appmsg></msg>', 6)
     append(49, '<msg><appmsg><title>官方文档</title><des>链接说明</des><url>https://example.com/doc?a=1&amp;b=2</url></appmsg></msg>', 5)
     append(49, '<msg><appmsg><title>引用回复内容</title><refermsg><type>1</type><displayname>测试好友</displayname><content>被引用的原始消息</content><svrid>1</svrid></refermsg></appmsg></msg>', 57)
+    placeholder = '当前版本不支持展示该内容，请升级至最新版本。'
+    upgrade = 'https://support.weixin.qq.com/update/'
+    append(49, f'<msg><appmsg><title>{placeholder}</title><type>51</type><url>{upgrade}</url>'
+           '<finderFeed><desc>视频号真实内容验证</desc><mediaList><media>'
+           '<url>https://example.com/video?key=fixture&amp;token=test</url>'
+           '</media></mediaList></finderFeed></appmsg></msg>', 51)
+    append(49, '<msg><appmsg><title>视频号回退标题验证</title><type>51</type></appmsg></msg>', 51)
+    append(49, f'<msg><appmsg><title>{placeholder}</title><des>直播真实内容验证</des>'
+           f'<type>63</type><url>{upgrade}</url></appmsg></msg>', 63)
+    append(49, f'<msg><appmsg><title>{placeholder}</title><des>小程序真实内容验证</des>'
+           f'<type>44</type><url>{upgrade}</url></appmsg></msg>', 44)
+    append(49, f'<msg><appmsg><title>{placeholder}</title><des>{placeholder}</des>'
+           f'<type>124</type><url>{upgrade}</url></appmsg></msg>', 124)
     append(10000, '测试好友撤回了一条消息')
     append(98765, '<未知消息>原始内容和 ``` 三个反引号</未知消息>')
     append(1, '结束边界：23点59分59秒', ts=first + 86399)

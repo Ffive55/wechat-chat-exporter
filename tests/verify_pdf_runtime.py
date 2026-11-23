@@ -7,6 +7,7 @@ import time
 
 from export_fixture import ROOT, create_fixture
 from api import Api
+from pdf_checks import verify_pdf_content
 import webview
 
 
@@ -17,6 +18,7 @@ def main(root):
                                    js_api=api, hidden=True, width=1320, height=880)
     api._window = window
     failures = []
+    reports = []
     def verify():
         try:
             assert window.events.loaded.wait(30)
@@ -44,9 +46,12 @@ def main(root):
                 assert not state['error'], state
                 assert state['result']['messages'] == fixture['messages'], state
                 assert not state['result']['missing'], state
+                report = verify_pdf_content(state['result']['path'])
+                reports.append({**state['result'], **report, 'attempt': attempt + 1})
                 assert window.evaluate_js('document.title') == '微信聊天导出器'
                 assert api.boot()['export_format'] == 'pdf'
-            print('PASS: real WebView2 date controls, two PDF exports in one UI session, primary UI remains available')
+            (root / 'verification.json').write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding='utf-8')
+            print('PASS: real WebView2 date controls, two PDF exports, full text/cards/A4/links verified, primary UI remains available')
         except Exception as exc:
             failures.append(exc)
         finally:
